@@ -23,17 +23,20 @@ void DbgPrint(char * str)
 	SendMessageA(edit, WM_SETTEXT, 0, (LPARAM)data);
 }
 
-LRESULT CALLBACK CallWndProc(int nCode, WPARAM wParam, LPARAM lParam)
+__declspec(dllexport) LRESULT CALLBACK CallWndProc(int nCode, WPARAM wParam, LPARAM lParam)
 {	
-	if (nCode >= HC_ACTION) {
-		char debugData[0x1000] = { 0 };
+	char debugData[1000] = { 0 };
+#pragma EXPORT	
+	if (nCode >= HC_ACTION) {		
 		PCWPSTRUCT msgData = (PCWPSTRUCT)lParam;
-		if (msgData->message = WM_COPYDATA) {
-			wsprintfA(debugData, "[+] WM_COPYDATA: nCode: %x, wParam: %x, lParam: %x\n", nCode, wParam, lParam);
-			DbgPrint(debugData);
-		}
-	}
+		//if (msgData->message = WM_COPYDATA) {
+			wsprintfA(debugData, "[+] WM_COPYDATA: nCode: %x, wParam: %x, lParam: 0x%x", 
+				nCode, wParam, lParam);
+			//wsprintfA(debugData, "[+] WM_COPYDATA: nCode: %x\n", nCode);
 
+			SendPacket(ip, port, debugData, strnlen_s(debugData, 2000));
+		//}
+	}
 	return CallNextHookEx(hHook, nCode, wParam, lParam);
 }
 
@@ -68,10 +71,10 @@ void setHook(HMODULE hModule)
 	DWORD pid = GetCurrentProcessId();
 	HWND hWnd = FindMainWindow(pid);
 	DWORD threadId = GetWindowThreadProcessId(hWnd, NULL);
-	//hHook = SetWindowsHookEx(WH_CALLWNDPROC, CallWndProc, NULL, threadId);
+	hHook = SetWindowsHookEx(WH_CALLWNDPROC, CallWndProc, 0, threadId);
 	//hHook = SetWindowsHookEx(WH_GETMESSAGE, GetMsgProc, hModule, 0);
 	//hHook = SetWindowsHookEx(WH_GETMESSAGE, GetMsgProc, 0, threadId);
-	hHook = SetWindowsHookEx(WH_KEYBOARD, KeyboardProc, 0, threadId);
+	//hHook = SetWindowsHookEx(WH_KEYBOARD, KeyboardProc, 0, threadId);
 
 
 	char debugData[0x1000] = { 0 };

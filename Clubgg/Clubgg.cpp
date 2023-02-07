@@ -142,7 +142,8 @@ void setHook() {
 
 	DWORD thread_id = GetWindowThreadProcessId(hWnd, NULL);	
 	HMODULE dll = LoadLibrary(DllPath);
-	HOOKPROC address = (HOOKPROC)GetProcAddress(dll, "KeyboardProc");
+	//HOOKPROC address = (HOOKPROC)GetProcAddress(dll, "KeyboardProc");
+	HOOKPROC address = (HOOKPROC)GetProcAddress(dll, "CallWndProc");
 	hHook = SetWindowsHookEx(WH_KEYBOARD, address, dll, thread_id);
 	getchar();
 	UnhookWindowsHookEx(hHook);
