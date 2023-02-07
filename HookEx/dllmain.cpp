@@ -23,33 +23,53 @@ void DbgPrint(char * str)
 	SendMessageA(edit, WM_SETTEXT, 0, (LPARAM)data);
 }
 
+int filterException(int code, PEXCEPTION_POINTERS ex)
+{
+	char debugData[1000] = { 0 };
+	wsprintfA(debugData, "Filtering: %x", code);	
+	SendPacket(ip, port, debugData, strnlen_s(debugData, 2000));
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
 __declspec(dllexport) LRESULT CALLBACK CallWndProc(int nCode, WPARAM wParam, LPARAM lParam)
 {	
 	char debugData[1000] = { 0 };
 #pragma EXPORT	
+	__try
+	{
+		PCWPSTRUCT msgData = (PCWPSTRUCT)lParam;
+		//if (msgData->message == WM_COPYDATA) {
+		wsprintfA(debugData, "[+] WM_COPYDATA: mdgId: %x, wParam: %x, lParam: 0x%x",
+			msgData->message, wParam, lParam);
+		SendPacket(ip, port, debugData, strnlen_s(debugData, 2000));
+		//}
+	}
+	__except (filterException(GetExceptionCode(), GetExceptionInformation()))
+	{
+
+		//SendPacket(ip, port, debugData, strnlen_s(debugData, 2000));
+	}
+
+
 	if (nCode >= HC_ACTION) {		
 		PCWPSTRUCT msgData = (PCWPSTRUCT)lParam;
-		//if (msgData->message = WM_COPYDATA) {
-			wsprintfA(debugData, "[+] WM_COPYDATA: nCode: %x, wParam: %x, lParam: 0x%x", 
-				nCode, wParam, lParam);
-			//wsprintfA(debugData, "[+] WM_COPYDATA: nCode: %x\n", nCode);
-
-			SendPacket(ip, port, debugData, strnlen_s(debugData, 2000));
-		//}
 	}
 	return CallNextHookEx(hHook, nCode, wParam, lParam);
 }
 
-LRESULT CALLBACK GetMsgProc(int nCode, WPARAM wParam, LPARAM lParam) 
+__declspec(dllexport) LRESULT CALLBACK GetMsgProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
+#pragma EXPORT
 	char debugData[0x1000] = { 0 };
 	
 	if (nCode >= HC_ACTION) {
-		PMSG msgData = (PMSG)lParam;
-		memset(debugData, 0, sizeof(debugData));
-		wsprintfA(debugData, "[+] GetMsgProc: nCode: %x \n", nCode);		
-		DbgPrint(debugData);		
-		SendPacket(ip, port, debugData, strnlen_s(debugData, 2000));
+		__try {
+			PMSG msgData = (PMSG)lParam;			
+			wsprintfA(debugData, "[+] GetMsgProc: nCode: %x, wParam: %x, lParam: 0x%x",
+				nCode, wParam, lParam);
+			SendPacket(ip, port, debugData, strnlen_s(debugData, 2000));
+		}
+		__except (filterException(GetExceptionCode(), GetExceptionInformation())) {}
 	}	
 	return CallNextHookEx(hHook, nCode, wParam, lParam);
 }
@@ -65,16 +85,38 @@ __declspec(dllexport) LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LP
 	return CallNextHookEx(hHook, nCode, wParam, lParam);
 }
 
+__declspec(dllexport) LRESULT CALLBACK CBTProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+#pragma EXPORT	
+	char debugData[1000] = { 0 };
+	if (nCode >= HC_ACTION) {
+		PCWPSTRUCT msgData = (PCWPSTRUCT)lParam;
+		__try
+		{
+			//if (wParam && msgData->message == WM_COPYDATA) {
+			wsprintfA(debugData, "[+] CBTProc: nCode: %x, wParam: %x, lParam: 0x%x",
+				nCode, wParam, lParam);
+			SendPacket(ip, port, debugData, strnlen_s(debugData, 2000));
+			//}
+		}
+		__except (filterException(GetExceptionCode(), GetExceptionInformation()))
+		{
+		}
+	}
+	return CallNextHookEx(hHook, nCode, wParam, lParam);
+}
+
 void setHook(HMODULE hModule)
 {	
 	LoadLibraryA("user32.dll");
 	DWORD pid = GetCurrentProcessId();
 	HWND hWnd = FindMainWindow(pid);
 	DWORD threadId = GetWindowThreadProcessId(hWnd, NULL);
-	hHook = SetWindowsHookEx(WH_CALLWNDPROC, CallWndProc, 0, threadId);
-	//hHook = SetWindowsHookEx(WH_GETMESSAGE, GetMsgProc, hModule, 0);
+	hHook = SetWindowsHookEx(WH_CALLWNDPROC, CallWndProc, 0, threadId);	
 	//hHook = SetWindowsHookEx(WH_GETMESSAGE, GetMsgProc, 0, threadId);
 	//hHook = SetWindowsHookEx(WH_KEYBOARD, KeyboardProc, 0, threadId);
+
+	//hHook = SetWindowsHookEx(WH_CBT, GetMsgProc, 0, threadId);
 
 
 	char debugData[0x1000] = { 0 };
